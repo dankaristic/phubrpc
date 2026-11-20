@@ -1,10 +1,14 @@
 # phubrpc
 
+The RPC implementation is currently under development and not available on the main bot. You can request to become a beta tester by messaging me on Telegram [@Dankaristic](https://t.me/Dankaristic)
+
+Prime refers to the Running instance of the Pornhub Downloader Bot. It can be found here [@PornhubDownloaderobot](https://t.me/pornhubdownloaderobot?start=c_github). The Prime bot is closed source, meaning code access is restricted.
+
 Run these commands on the **Linux machine that will download the videos**.  Prime can stay on its own VPS. With Coolify in front of Prime, the worker connects to your public hub hostname on **port 443**.
 
 ## 1. Install the worker on the download machine
 
-Open Bash in the worker source folder (the one containing `pyproject.toml` and `phubrpc/`). You need Python 3.11 or newer and FFmpeg. On Debian or Ubuntu you can install FFmpeg and venv support with `sudo apt install ffmpeg python3-venv`.
+Open Bash in the worker source folder (the one containing `pyproject.toml` and `phubrpc/`). You need PythUpdon 3.11 or newer and FFmpeg. On Debian or Ubuntu you can install FFmpeg and venv support with `sudo apt install ffmpeg python3-venv`.
 
 ```bash
 python3 --version
@@ -30,13 +34,13 @@ Use your own two IDs. Prime replies with a code valid for ten minutes.
 
 ## 3. Register once on the download machine
 
-Replace `hub.example.com` with the public hostname in your Coolify route. Enter the pairing code when prompted. The terminal hides your input.
+Enter the pairing code when prompted. The terminal hides your input.
 
 ```bash
-.venv/bin/worker register --hub hub.example.com:443
+.venv/bin/worker register --hub rpc.dank.pw:443
 ```
 
-Wait for `Registered worker ... for channel ...`. For Coolify's public certificate, the hostname and port are sufficient. If your operator uses a private certificate authority, add `--ca /path/to/hub-ca.pem`.
+Wait for `Registered worker ... for channel ...`. For Coolify's public certificate, the hostname and port are sufficient. 
 
 ## 4. Start downloading
 
