@@ -113,10 +113,11 @@ def ytdlp(*args):
         "yt_dlp",
         "--ignore-config",
         "--no-playlist",
-        "--no-warnings",
         "--no-progress",
         "--socket-timeout",
         "12",
+        "--add-headers",
+        "Referer:https://www.pornhub.com/",
         *(("--proxy", proxy) if proxy else ()),
         *args,
     )

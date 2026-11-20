@@ -61,7 +61,7 @@ export WORKER_HTTP_PROXY='http://user:password@proxy-host:port'
 .venv/bin/worker run
 ```
 
-This setting applies to both metadata lookups and video downloads. The proxy must be able to reach the video site; Coolify's inbound HTTPS proxy does not change the worker's outbound IP. To check the proxy before starting the worker, run `.venv/bin/python -m yt_dlp --proxy "$WORKER_HTTP_PROXY" --dump-single-json -- 'VIDEO_LINK' >/dev/null`. If the command still returns 403, try a different outbound IP or run the worker from a network where the site loads.
+This setting applies to both metadata lookups and video downloads. The proxy must be able to reach the video page, not just the site's homepage; Coolify's inbound HTTPS proxy does not change the worker's outbound IP. To check the proxy before starting the worker, run `.venv/bin/python -m yt_dlp --proxy "$WORKER_HTTP_PROXY" --dump-single-json -- 'VIDEO_LINK' >/dev/null`. If the command still returns 403, run `.venv/bin/python -m yt_dlp --list-impersonate-targets` and verify that at least one browser target is available. Reinstall the worker with `.venv/bin/python -m pip install -U .` to install the browser impersonation dependency. A proxy whose IP is rejected on the video page can still return 403 after this; try another outbound IP or run the worker from a network where the page loads.
 
 Leave it running. If the terminal asks for a setup message, post any text in the private channel within 60 seconds. Once you see `Connected as worker bot`, DM Prime `/byoc`. It should show **online**. Send Prime a video link and select an uncached quality priced at zero coins for a first test.
 
