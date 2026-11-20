@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14phubrpc/worker.proto\x12\rprime.byoc.v1\"\x07\n\x05\x45mpty\"\x17\n\x07Pairing\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\"J\n\x0b\x43redentials\x12\x11\n\tworker_id\x18\x01 \x01(\t\x12\r\n\x05token\x18\x02 \x01(\t\x12\x19\n\x11ingest_channel_id\x18\x03 \x01(\x03\"\x80\x01\n\nAssignment\x12\x0e\n\x06job_id\x18\x01 \x01(\t\x12\x0b\n\x03url\x18\x02 \x01(\t\x12\x0f\n\x07quality\x18\x03 \x01(\t\x12\x11\n\tmax_bytes\x18\x04 \x01(\x03\x12\x16\n\x0emetadata_title\x18\x05 \x01(\t\x12\x19\n\x11metadata_uploader\x18\x06 \x01(\t\"X\n\x08Metadata\x12\r\n\x05title\x18\x01 \x01(\t\x12\x10\n\x08uploader\x18\x02 \x01(\t\x12\x18\n\x10\x64uration_seconds\x18\x03 \x01(\r\x12\x11\n\tqualities\x18\x04 \x03(\t\"\xa5\x01\n\x06Result\x12\x0e\n\x06job_id\x18\x01 \x01(\t\x12+\n\x08metadata\x18\x02 \x01(\x0b\x32\x17.prime.byoc.v1.MetadataH\x00\x12\x14\n\nmessage_id\x18\x03 \x01(\x05H\x00\x12\x10\n\x06\x66\x61iled\x18\x04 \x01(\x08H\x00\x12+\n\x08progress\x18\x05 \x01(\x0b\x32\x17.prime.byoc.v1.ProgressH\x00\x42\t\n\x07outcome\"E\n\x08Progress\x12\r\n\x05stage\x18\x01 \x01(\t\x12\x15\n\rcurrent_bytes\x18\x02 \x01(\x04\x12\x13\n\x0btotal_bytes\x18\x03 \x01(\x04\"\x18\n\x07Receipt\x12\r\n\x05state\x18\x01 \x01(\t2\xfa\x01\n\tWorkerHub\x12>\n\x08Register\x12\x16.prime.byoc.v1.Pairing\x1a\x1a.prime.byoc.v1.Credentials\x12\x37\n\tHeartbeat\x12\x14.prime.byoc.v1.Empty\x1a\x14.prime.byoc.v1.Empty\x12;\n\x08\x43laimJob\x12\x14.prime.byoc.v1.Empty\x1a\x19.prime.byoc.v1.Assignment\x12\x37\n\x06Report\x12\x15.prime.byoc.v1.Result\x1a\x16.prime.byoc.v1.Receiptb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x14phubrpc/worker.proto\x12\rprime.byoc.v1\"\x07\n\x05\x45mpty\"\x17\n\x07Pairing\x12\x0c\n\x04\x63ode\x18\x01 \x01(\t\"J\n\x0b\x43redentials\x12\x11\n\tworker_id\x18\x01 \x01(\t\x12\r\n\x05token\x18\x02 \x01(\t\x12\x19\n\x11ingest_channel_id\x18\x03 \x01(\x03\"\x80\x01\n\nAssignment\x12\x0e\n\x06job_id\x18\x01 \x01(\t\x12\x0b\n\x03url\x18\x02 \x01(\t\x12\x0f\n\x07quality\x18\x03 \x01(\t\x12\x11\n\tmax_bytes\x18\x04 \x01(\x03\x12\x16\n\x0emetadata_title\x18\x05 \x01(\t\x12\x19\n\x11metadata_uploader\x18\x06 \x01(\t\"X\n\x08Metadata\x12\r\n\x05title\x18\x01 \x01(\t\x12\x10\n\x08uploader\x18\x02 \x01(\t\x12\x18\n\x10\x64uration_seconds\x18\x03 \x01(\r\x12\x11\n\tqualities\x18\x04 \x03(\t\"\xa5\x01\n\x06Result\x12\x0e\n\x06job_id\x18\x01 \x01(\t\x12+\n\x08metadata\x18\x02 \x01(\x0b\x32\x17.prime.byoc.v1.MetadataH\x00\x12\x14\n\nmessage_id\x18\x03 \x01(\x05H\x00\x12\x10\n\x06\x66\x61iled\x18\x04 \x01(\x08H\x00\x12+\n\x08progress\x18\x05 \x01(\x0b\x32\x17.prime.byoc.v1.ProgressH\x00\x42\t\n\x07outcome\"z\n\x08Progress\x12\r\n\x05stage\x18\x01 \x01(\t\x12\x15\n\rcurrent_bytes\x18\x02 \x01(\x04\x12\x13\n\x0btotal_bytes\x18\x03 \x01(\x04\x12\x1e\n\x16speed_bytes_per_second\x18\x04 \x01(\x04\x12\x13\n\x0b\x65ta_seconds\x18\x05 \x01(\r\"\x18\n\x07Receipt\x12\r\n\x05state\x18\x01 \x01(\t2\xfa\x01\n\tWorkerHub\x12>\n\x08Register\x12\x16.prime.byoc.v1.Pairing\x1a\x1a.prime.byoc.v1.Credentials\x12\x37\n\tHeartbeat\x12\x14.prime.byoc.v1.Empty\x1a\x14.prime.byoc.v1.Empty\x12;\n\x08\x43laimJob\x12\x14.prime.byoc.v1.Empty\x1a\x19.prime.byoc.v1.Assignment\x12\x37\n\x06Report\x12\x15.prime.byoc.v1.Result\x1a\x16.prime.byoc.v1.Receiptb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -44,9 +44,9 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_RESULT']._serialized_start=371
   _globals['_RESULT']._serialized_end=536
   _globals['_PROGRESS']._serialized_start=538
-  _globals['_PROGRESS']._serialized_end=607
-  _globals['_RECEIPT']._serialized_start=609
-  _globals['_RECEIPT']._serialized_end=633
-  _globals['_WORKERHUB']._serialized_start=636
-  _globals['_WORKERHUB']._serialized_end=886
+  _globals['_PROGRESS']._serialized_end=660
+  _globals['_RECEIPT']._serialized_start=662
+  _globals['_RECEIPT']._serialized_end=686
+  _globals['_WORKERHUB']._serialized_start=689
+  _globals['_WORKERHUB']._serialized_end=939
 # @@protoc_insertion_point(module_scope)

@@ -39,6 +39,8 @@ message Progress {
   string stage = 1;
   uint64 current_bytes = 2;
   uint64 total_bytes = 3;
+  uint64 speed_bytes_per_second = 4;
+  uint32 eta_seconds = 5;
 }
 message Receipt {
   string state = 1; // reported, copied, delivered, completed, failed or expired

@@ -61,6 +61,37 @@ async def command(*args, workspace=None, limit=0):
         await output
 
 
+async def download_command(args, workspace, limit, progress):
+    process = await asyncio.create_subprocess_exec(
+        *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+        cwd=workspace, start_new_session=True,
+    )
+    try:
+        while line := await process.stdout.readline():
+            if workspace_size(workspace) > limit:
+                raise MediaError("Temporary storage budget exceeded")
+            if progress and line.startswith(b"BYOC:"):
+                try:
+                    _, current, total, estimated, speed, eta = line.decode().strip().split(":", 5)
+                    downloaded = int(current)
+                    size = next((int(value) for value in (total, estimated)
+                                 if value.isdecimal() and int(value) >= downloaded), 0)
+                    await progress(downloaded, size,
+                                   int(float(speed)) if speed not in {"NA", "None"} else 0,
+                                   int(float(eta)) if eta not in {"NA", "None"} else 0)
+                except (ValueError, UnicodeDecodeError):
+                    continue
+        if await process.wait():
+            raise MediaError(f"yt-dlp exited with code {process.returncode}")
+    finally:
+        if process.returncode is None:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            await process.wait()
+
+
 def ytdlp(*args):
     return (
         sys.executable,
@@ -96,7 +127,7 @@ async def metadata(url):
     )
 
 
-async def download(job, folder):
+async def download(job, folder, progress=None):
     height = next(h for h, name in TIERS.items() if name == job.quality)
     limit = min(job.max_bytes, MAX_BYTES)
     if limit <= 0:
@@ -110,9 +141,14 @@ async def download(job, folder):
         for kind, audio in (("b", ""), ("bv", "+ba[ext=m4a]"), ("bv", ""))
         for size in sizes
     ]
-    await command(
-        *ytdlp(
+    await download_command(
+        ytdlp(
             "--quiet",
+            "--progress",
+            "--newline",
+            "--progress-delta", "2",
+            "--progress-template",
+            "download:BYOC:%(progress.downloaded_bytes)s:%(progress.total_bytes)s:%(progress.total_bytes_estimate)s:%(progress.speed)s:%(progress.eta)s",
             "--max-filesize",
             str(limit),
             "-f",
@@ -126,6 +162,7 @@ async def download(job, folder):
         ),
         workspace=folder,
         limit=3 * limit + 16 * 1024**2,
+        progress=progress,
     )
     path = folder / "video.mp4"
     if not path.is_file() or not 0 < path.stat().st_size <= limit:

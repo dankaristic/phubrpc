@@ -108,14 +108,18 @@ async def execute(job, telegram, channel, workspace, progress=None):
         raise media.MediaError("Unsupported quality")
     async with asyncio.timeout(3500):
         if progress:
-            await progress("downloading", 0, 0)
-        path, w, h, duration = await media.download(job, workspace)
+            await progress("downloading", 0, 0, 0, 0)
+        async def download_progress(current, total, speed, eta):
+            if progress:
+                await progress("downloading", current, total, speed, eta)
+
+        path, w, h, duration = await media.download(job, workspace, download_progress if progress else None)
         await check_channel(telegram, channel)
         if progress:
-            await progress("uploading", 0, path.stat().st_size)
+            await progress("uploading", 0, path.stat().st_size, 0, 0)
         async def upload_progress(current, total):
             if progress:
-                await progress("uploading", current, total)
+                await progress("uploading", current, total, 0, 0)
 
         message = await telegram.send_file(
             channel,
@@ -159,10 +163,10 @@ async def jobs(stub, auth, telegram, channel, directory):
             save(journal, record)
             last_progress = 0.0
 
-            async def report_progress(stage, current, total):
+            async def report_progress(stage, current, total, speed, eta):
                 nonlocal last_progress
                 timestamp = time.monotonic()
-                if stage == "uploading" and 0 < current < total and timestamp - last_progress < 5:
+                if current > 0 and (not total or current < total) and timestamp - last_progress < 5:
                     return
                 last_progress = timestamp
                 receipt = await call(
@@ -170,15 +174,20 @@ async def jobs(stub, auth, telegram, channel, directory):
                     pb.Result(
                         job_id=job.job_id,
                         progress=pb.Progress(
-                            stage=stage, current_bytes=int(current), total_bytes=int(total)
+                            stage=stage, current_bytes=int(current),
+                            total_bytes=max(int(total), int(current)) if total else 0,
+                            speed_bytes_per_second=max(0, int(speed)),
+                            eta_seconds=max(0, int(eta)),
                         ),
                     ),
                     auth,
                 )
                 if receipt.state != "assigned":
                     raise media.MediaError("The hub closed the worker assignment")
-                if stage == "uploading" and total:
-                    LOG.info("Uploading %s%%", int(100 * current / total))
+                if total:
+                    LOG.info("%s %s%%", stage.capitalize(), int(100 * current / total))
+                elif current:
+                    LOG.info("%s %s MiB", stage.capitalize(), current // 1024**2)
                 else:
                     LOG.info("Worker stage: %s", stage)
 
@@ -186,11 +195,12 @@ async def jobs(stub, auth, telegram, channel, directory):
                 result = await execute(job, telegram, channel, workspace, report_progress)
             except Exception as exc:  # noqa: BLE001 -- close this assignment before claiming another
                 # Third-party errors can include signed media URLs and credentials.
-                reason = (
-                    str(exc)
-                    if isinstance(exc, media.MediaError)
-                    else type(exc).__name__
-                )
+                if isinstance(exc, grpc.aio.AioRpcError):
+                    reason = f"hub {exc.code().name}: {exc.details()}"
+                elif isinstance(exc, media.MediaError):
+                    reason = str(exc)
+                else:
+                    reason = type(exc).__name__
                 LOG.warning("Job %s failed (%s)", job.job_id, reason)
                 result = pb.Result(job_id=job.job_id, failed=True)
             record["result"] = base64.b64encode(result.SerializeToString()).decode()

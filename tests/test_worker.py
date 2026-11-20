@@ -269,6 +269,8 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(reports[0].metadata.qualities, ["720p"])
         self.assertIn("downloading", [r.progress.stage for r in reports
                                       if r.WhichOneof("outcome") == "progress"])
+        self.assertTrue(any(r.progress.stage == "downloading" and r.progress.current_bytes > 0
+                            for r in reports if r.WhichOneof("outcome") == "progress"))
         self.assertIn("uploading", [r.progress.stage for r in reports
                                     if r.WhichOneof("outcome") == "progress"])
         self.assertEqual([r.message_id for r in reports
