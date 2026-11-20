@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import tempfile
+import time
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -97,7 +98,7 @@ async def check_channel(telegram, channel_id):
         raise media.MediaError("The worker bot needs permission to post in its channel")
 
 
-async def execute(job, telegram, channel, workspace):
+async def execute(job, telegram, channel, workspace, progress=None):
     if not media.URL.fullmatch(job.url):
         raise media.MediaError("Unsupported URL")
     if not job.quality:
@@ -106,12 +107,21 @@ async def execute(job, telegram, channel, workspace):
     if job.quality not in media.TIERS.values():
         raise media.MediaError("Unsupported quality")
     async with asyncio.timeout(3500):
+        if progress:
+            await progress("downloading", 0, 0)
         path, w, h, duration = await media.download(job, workspace)
         await check_channel(telegram, channel)
+        if progress:
+            await progress("uploading", 0, path.stat().st_size)
+        async def upload_progress(current, total):
+            if progress:
+                await progress("uploading", current, total)
+
         message = await telegram.send_file(
             channel,
             path,
             caption=job.job_id,
+            progress_callback=upload_progress if progress else None,
             parse_mode=None,
             mime_type="video/mp4",
             attributes=[
@@ -147,8 +157,33 @@ async def jobs(stub, auth, telegram, channel, directory):
             workspace = Path(tempfile.mkdtemp(dir=directory, prefix="job-"))
             record = {"job_id": job.job_id, "folder": workspace.name}
             save(journal, record)
+            last_progress = 0.0
+
+            async def report_progress(stage, current, total):
+                nonlocal last_progress
+                timestamp = time.monotonic()
+                if stage == "uploading" and 0 < current < total and timestamp - last_progress < 5:
+                    return
+                last_progress = timestamp
+                receipt = await call(
+                    stub.Report,
+                    pb.Result(
+                        job_id=job.job_id,
+                        progress=pb.Progress(
+                            stage=stage, current_bytes=int(current), total_bytes=int(total)
+                        ),
+                    ),
+                    auth,
+                )
+                if receipt.state != "assigned":
+                    raise media.MediaError("The hub closed the worker assignment")
+                if stage == "uploading" and total:
+                    LOG.info("Uploading %s%%", int(100 * current / total))
+                else:
+                    LOG.info("Worker stage: %s", stage)
+
             try:
-                result = await execute(job, telegram, channel, workspace)
+                result = await execute(job, telegram, channel, workspace, report_progress)
             except Exception as exc:  # noqa: BLE001 -- close this assignment before claiming another
                 # Third-party errors can include signed media URLs and credentials.
                 reason = (

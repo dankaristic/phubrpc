@@ -16,6 +16,8 @@ message Assignment {
   string url = 2;
   string quality = 3; // Empty for metadata requests.
   int64 max_bytes = 4;
+  string metadata_title = 5;
+  string metadata_uploader = 6;
   // Upload the video with the job_id as its exact caption.
 }
 message Metadata {
@@ -30,7 +32,13 @@ message Result {
     Metadata metadata = 2;
     int32 message_id = 3;
     bool failed = 4;
+    Progress progress = 5;
   }
+}
+message Progress {
+  string stage = 1;
+  uint64 current_bytes = 2;
+  uint64 total_bytes = 3;
 }
 message Receipt {
   string state = 1; // reported, copied, delivered, completed, failed or expired

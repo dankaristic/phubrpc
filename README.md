@@ -8,7 +8,7 @@ Run these commands on the **Linux machine that will download the videos**.  Prim
 
 ## 1. Install the worker on the download machine
 
-Open Bash in the worker source folder (the one containing `pyproject.toml` and `phubrpc/`). You need PythUpdon 3.11 or newer and FFmpeg. On Debian or Ubuntu you can install FFmpeg and venv support with `sudo apt install ffmpeg python3-venv`.
+Open Bash in the worker source folder (the one containing `pyproject.toml` and `phubrpc/`). You need Python 3.11 or newer and FFmpeg. On Debian or Ubuntu you can install FFmpeg and venv support with `sudo apt install ffmpeg python3-venv`.
 
 ```bash
 python3 --version

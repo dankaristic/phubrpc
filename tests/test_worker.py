@@ -204,7 +204,10 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
 
             async def Report(self, request, context):
                 reports.append(request)
-                return pb.Receipt(state="reported" if len(reports) <= 2 else "copied")
+                if request.WhichOneof("outcome") == "progress":
+                    return pb.Receipt(state="assigned")
+                uploads = sum(r.WhichOneof("outcome") == "message_id" for r in reports)
+                return pb.Receipt(state="reported" if uploads == 1 else "copied")
 
         server = grpc.aio.server()
         rpc.add_WorkerHubServicer_to_server(Hub(), server)
@@ -264,7 +267,12 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
                 await asyncio.gather(task, return_exceptions=True)
         self.assertEqual(set(heartbeats), {"Bearer test-bearer"})
         self.assertEqual(reports[0].metadata.qualities, ["720p"])
-        self.assertEqual([r.message_id for r in reports[1:]], [22, 22])
+        self.assertIn("downloading", [r.progress.stage for r in reports
+                                      if r.WhichOneof("outcome") == "progress"])
+        self.assertIn("uploading", [r.progress.stage for r in reports
+                                    if r.WhichOneof("outcome") == "progress"])
+        self.assertEqual([r.message_id for r in reports
+                          if r.WhichOneof("outcome") == "message_id"], [22, 22])
         channel, data, kwargs = observed[0]
         self.assertEqual(len(observed), 1)
         self.assertEqual(
