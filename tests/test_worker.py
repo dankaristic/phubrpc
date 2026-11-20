@@ -152,6 +152,14 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
                     "title": "Fixture",
                     "uploader": "Test",
                     "duration": 1,
+                    "upload_date": "20261120",
+                    "view_count": 1234,
+                    "like_count": 80,
+                    "dislike_count": 20,
+                    "tags": ["sample"],
+                    "categories": ["Demo"],
+                    "cast": ["Performer"],
+                    "orientation": "straight",
                     "extractor": "generic",
                     "webpage_url": URL,
                     "formats": [
@@ -238,7 +246,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         observed = []
 
         async def send(channel, path, **kwargs):
-            observed.append((channel, path.read_bytes(), kwargs))
+            observed.append((channel, path.read_bytes(), kwargs, kwargs["thumb"].read_bytes()))
             return SimpleNamespace(id=22)
 
         telegram.send_file.side_effect = send
@@ -267,6 +275,12 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
                 await asyncio.gather(task, return_exceptions=True)
         self.assertEqual(set(heartbeats), {"Bearer test-bearer"})
         self.assertEqual(reports[0].metadata.qualities, ["720p"])
+        self.assertEqual(reports[0].metadata.published, "20261120")
+        self.assertEqual(reports[0].metadata.views, 1234)
+        self.assertEqual(reports[0].metadata.like_ratio, 80)
+        self.assertEqual(list(reports[0].metadata.tags), ["sample"])
+        self.assertEqual(list(reports[0].metadata.categories), ["Demo"])
+        self.assertEqual(list(reports[0].metadata.pornstars), ["Performer"])
         self.assertIn("downloading", [r.progress.stage for r in reports
                                       if r.WhichOneof("outcome") == "progress"])
         self.assertTrue(any(r.progress.stage == "downloading" and r.progress.current_bytes > 0
@@ -275,7 +289,7 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
                                     if r.WhichOneof("outcome") == "progress"])
         self.assertEqual([r.message_id for r in reports
                           if r.WhichOneof("outcome") == "message_id"], [22, 22])
-        channel, data, kwargs = observed[0]
+        channel, data, kwargs, thumb = observed[0]
         self.assertEqual(len(observed), 1)
         self.assertEqual(
             (channel, data, kwargs["caption"]),
@@ -283,4 +297,5 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         )
         (attr,) = kwargs["attributes"]
         self.assertEqual((attr.w, attr.h), (1280, 720))
+        self.assertTrue(thumb.startswith(b"\xff\xd8\xff"))
         self.assertFalse((state / "pending.json").exists())

@@ -25,6 +25,13 @@ message Metadata {
   string uploader = 2;
   uint32 duration_seconds = 3;
   repeated string qualities = 4;
+  string published = 5;
+  uint64 views = 6;
+  double like_ratio = 7; // Percentage, 0 to 100.
+  repeated string tags = 8;
+  repeated string categories = 9;
+  repeated string pornstars = 10;
+  string orientation = 11;
 }
 message Result {
   string job_id = 1;

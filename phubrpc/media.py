@@ -135,11 +135,26 @@ async def metadata(url):
     tiers = [tier for height, tier in TIERS.items() if height in heights]
     if not tiers:
         raise MediaError("No compatible MP4 quality available")
+
+    def names(field, count):
+        return [str(value).strip()[:64] for value in (info.get(field) or [])[:count]
+                if isinstance(value, str) and value.strip()]
+
+    likes = max(0, int(info.get("like_count") or 0))
+    dislikes = max(0, int(info.get("dislike_count") or 0))
+    published = str(info.get("upload_date") or "")
     return pb.Metadata(
         title=str(info.get("title") or "")[:256],
         uploader=str(info.get("uploader") or "")[:128],
         duration_seconds=int(info.get("duration") or 0),
         qualities=tiers,
+        published=published if len(published) == 8 and published.isdigit() else "",
+        views=max(0, int(info.get("view_count") or 0)),
+        like_ratio=100 * likes / (likes + dislikes) if likes + dislikes else 0,
+        tags=names("tags", 4),
+        categories=names("categories", 3),
+        pornstars=names("cast", 3),
+        orientation=str(info.get("orientation") or "")[:32],
     )
 
 
@@ -202,3 +217,18 @@ async def download(job, folder, progress=None):
     if min(w, h) != height or not math.isfinite(duration) or not 0 < duration <= 86400:
         raise MediaError("Downloaded video does not match the assignment")
     return path, w, h, duration
+
+
+async def thumbnail(path, duration):
+    """Extract a small JPEG from the video for Telegram's preview."""
+    thumb = path.with_suffix(".jpg")
+    try:
+        await command(
+            "ffmpeg", "-y", "-loglevel", "error",
+            "-ss", str(min(15, duration / 2)), "-i", str(path),
+            "-an", "-vf", "scale=320:320:force_original_aspect_ratio=decrease",
+            "-frames:v", "1", "-q:v", "5", str(thumb),
+        )
+    except MediaError:
+        return None
+    return thumb if thumb.is_file() and 0 < thumb.stat().st_size <= 200_000 else None

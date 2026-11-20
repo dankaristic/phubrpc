@@ -114,6 +114,7 @@ async def execute(job, telegram, channel, workspace, progress=None):
                 await progress("downloading", current, total, speed, eta)
 
         path, w, h, duration = await media.download(job, workspace, download_progress if progress else None)
+        thumb = await media.thumbnail(path, duration)
         await check_channel(telegram, channel)
         if progress:
             await progress("uploading", 0, path.stat().st_size, 0, 0)
@@ -124,6 +125,7 @@ async def execute(job, telegram, channel, workspace, progress=None):
         message = await telegram.send_file(
             channel,
             path,
+            thumb=thumb,
             caption=job.job_id,
             progress_callback=upload_progress if progress else None,
             parse_mode=None,
