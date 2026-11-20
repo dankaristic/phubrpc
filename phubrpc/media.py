@@ -7,6 +7,7 @@ import os
 import re
 import signal
 import sys
+import tempfile
 from pathlib import Path
 
 from . import worker_pb2 as pb
@@ -32,64 +33,76 @@ def workspace_size(folder):
     return size
 
 
+def subprocess_error(args, returncode, stderr):
+    """Keep a short diagnostic without exposing signed media URLs."""
+    name = "yt-dlp" if len(args) > 2 and args[1:3] == ("-m", "yt_dlp") else Path(args[0]).name
+    stderr.seek(0, os.SEEK_END)
+    stderr.seek(max(0, stderr.tell() - 4096))
+    detail = stderr.read().decode("utf-8", "replace")
+    detail = re.sub(r"https?://\S+", "[URL]", detail)
+    detail = re.sub(r"(?i)\b(token|key|signature|auth|password)=\S+", r"\1=[redacted]", detail)
+    detail = " ".join(detail.splitlines()[-3:]).strip()
+    return f"{name} exited with code {returncode}" + (f": {detail[:500]}" if detail else "")
+
+
 async def command(*args, workspace=None, limit=0):
-    process = await asyncio.create_subprocess_exec(
-        *args,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.DEVNULL,
-        cwd=workspace,
-        start_new_session=True,
-    )
-    output = asyncio.create_task(process.communicate())
-    try:
-        while not output.done():
-            await asyncio.wait({output}, timeout=1)
-            if workspace and workspace_size(workspace) > limit:
-                raise MediaError("Temporary storage budget exceeded")
-        stdout, _ = await output
-        if process.returncode:
-            raise MediaError(
-                f"{Path(args[0]).name} exited with code {process.returncode}"
-            )
-        return stdout
-    finally:
-        if process.returncode is None:
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-        await output
+    with tempfile.TemporaryFile() as stderr:
+        process = await asyncio.create_subprocess_exec(
+            *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=stderr,
+            cwd=workspace,
+            start_new_session=True,
+        )
+        output = asyncio.create_task(process.communicate())
+        try:
+            while not output.done():
+                await asyncio.wait({output}, timeout=1)
+                if workspace and workspace_size(workspace) > limit:
+                    raise MediaError("Temporary storage budget exceeded")
+            stdout, _ = await output
+            if process.returncode:
+                raise MediaError(subprocess_error(args, process.returncode, stderr))
+            return stdout
+        finally:
+            if process.returncode is None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            await output
 
 
 async def download_command(args, workspace, limit, progress):
-    process = await asyncio.create_subprocess_exec(
-        *args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
-        cwd=workspace, start_new_session=True,
-    )
-    try:
-        while line := await process.stdout.readline():
-            if workspace_size(workspace) > limit:
-                raise MediaError("Temporary storage budget exceeded")
-            if progress and line.startswith(b"BYOC:"):
+    with tempfile.TemporaryFile() as stderr:
+        process = await asyncio.create_subprocess_exec(
+            *args, stdout=asyncio.subprocess.PIPE, stderr=stderr,
+            cwd=workspace, start_new_session=True,
+        )
+        try:
+            while line := await process.stdout.readline():
+                if workspace_size(workspace) > limit:
+                    raise MediaError("Temporary storage budget exceeded")
+                if progress and line.startswith(b"BYOC:"):
+                    try:
+                        _, current, total, estimated, speed, eta = line.decode().strip().split(":", 5)
+                        downloaded = int(current)
+                        size = next((int(value) for value in (total, estimated)
+                                     if value.isdecimal() and int(value) >= downloaded), 0)
+                        await progress(downloaded, size,
+                                       int(float(speed)) if speed not in {"NA", "None"} else 0,
+                                       int(float(eta)) if eta not in {"NA", "None"} else 0)
+                    except (ValueError, UnicodeDecodeError):
+                        continue
+            if await process.wait():
+                raise MediaError(subprocess_error(args, process.returncode, stderr))
+        finally:
+            if process.returncode is None:
                 try:
-                    _, current, total, estimated, speed, eta = line.decode().strip().split(":", 5)
-                    downloaded = int(current)
-                    size = next((int(value) for value in (total, estimated)
-                                 if value.isdecimal() and int(value) >= downloaded), 0)
-                    await progress(downloaded, size,
-                                   int(float(speed)) if speed not in {"NA", "None"} else 0,
-                                   int(float(eta)) if eta not in {"NA", "None"} else 0)
-                except (ValueError, UnicodeDecodeError):
-                    continue
-        if await process.wait():
-            raise MediaError(f"yt-dlp exited with code {process.returncode}")
-    finally:
-        if process.returncode is None:
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            await process.wait()
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                await process.wait()
 
 
 def ytdlp(*args):
