@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phubrpc"
+version = "0.1.0"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+description = "Private Telegram download worker for the Prime BYOC hub"
+requires-python = ">=3.11"
+dependencies = [
+  "grpcio>=1.85.3,<2",
+  "protobuf>=7.35.1,<8",
+  "Telethon>=1.36,<2",
+  "yt-dlp>=2025.12.8",
+]
+
+[project.scripts]
+worker = "phubrpc.cli:main"
+
+[tool.setuptools.package-data]
+phubrpc = ["worker.proto"]

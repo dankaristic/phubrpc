@@ -1,0 +1,37 @@
+syntax = "proto3";
+package prime.byoc.v1;
+
+// Workers initiate every call. After Register, attach authorization: Bearer <token>.
+service WorkerHub {
+  rpc Register (Pairing) returns (Credentials);
+  rpc Heartbeat (Empty) returns (Empty);
+  rpc ClaimJob (Empty) returns (Assignment);
+  rpc Report (Result) returns (Receipt);
+}
+message Empty {}
+message Pairing { string code = 1; }
+message Credentials { string worker_id = 1; string token = 2; int64 ingest_channel_id = 3; }
+message Assignment {
+  string job_id = 1; // Empty when idle. Repeated claims return the same active assignment.
+  string url = 2;
+  string quality = 3; // Empty for metadata requests.
+  int64 max_bytes = 4;
+  // Upload the video with the job_id as its exact caption.
+}
+message Metadata {
+  string title = 1;
+  string uploader = 2;
+  uint32 duration_seconds = 3;
+  repeated string qualities = 4;
+}
+message Result {
+  string job_id = 1;
+  oneof outcome {
+    Metadata metadata = 2;
+    int32 message_id = 3;
+    bool failed = 4;
+  }
+}
+message Receipt {
+  string state = 1; // reported, copied, delivered, completed, failed or expired
+}

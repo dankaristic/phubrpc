@@ -1,1 +1,75 @@
-Hello
+# phubrpc
+
+Run these commands on the **Linux machine that will download the videos**.  Prime can stay on its own VPS. With Coolify in front of Prime, the worker connects to your public hub hostname on **port 443**.
+
+## 1. Install the worker on the download machine
+
+Open Bash in the worker source folder (the one containing `pyproject.toml` and `phubrpc/`). You need Python 3.11 or newer and FFmpeg. On Debian or Ubuntu you can install FFmpeg and venv support with `sudo apt install ffmpeg python3-venv`.
+
+```bash
+python3 --version
+python3 -m venv .venv
+.venv/bin/python -m pip install .
+.venv/bin/worker --help
+```
+
+The help screen should list `register` and `run`. If the worker is already installed here, skip this step.
+
+## 2. Get a pairing code in Telegram
+
+1. Create a worker bot with `@BotFather` and keep its token on the download machine. The digits before the colon in the token are the **worker bot ID**.
+2. Create a private broadcast channel. Its admins should be you, your worker bot (permission to post), and Prime (permission to delete). Turn off signatures and **Restrict Saving Content**.
+3. To find the **channel ID**, post a message and copy its link. For example, a link ending in `/c/1234567890/7` gives the marked channel ID `-1001234567890`.
+4. From your BYOC-enabled Telegram account, DM the **Prime bot serving this hub**. For example, if your worker bot ID is `123456789` and your channel ID is `-1001234567890`, send:
+
+   ```text
+   /byoc pair 123456789 -1001234567890
+   ```
+
+Use your own two IDs. Prime replies with a code valid for ten minutes.
+
+## 3. Register once on the download machine
+
+Replace `hub.example.com` with the public hostname in your Coolify route. Enter the pairing code when prompted. The terminal hides your input.
+
+```bash
+.venv/bin/worker register --hub hub.example.com:443
+```
+
+Wait for `Registered worker ... for channel ...`. For Coolify's public certificate, the hostname and port are sufficient. If your operator uses a private certificate authority, add `--ca /path/to/hub-ca.pem`.
+
+## 4. Start downloading
+
+In the same Bash terminal, run these commands one line at a time. Enter your Telegram application's API ID and hash from `my.telegram.org` → **API development tools**, then the **worker bot's** BotFather token.
+
+```bash
+read -rp 'Telegram API ID: ' TELEGRAM_API_ID
+read -rsp 'Telegram API hash: ' TELEGRAM_API_HASH; echo
+read -rsp 'Worker bot token: ' TELEGRAM_BOT_TOKEN; echo
+export TELEGRAM_API_ID TELEGRAM_API_HASH TELEGRAM_BOT_TOKEN
+.venv/bin/worker run
+```
+
+Leave it running. If the terminal asks for a setup message, post any text in the private channel within 60 seconds. Once you see `Connected as worker bot`, DM Prime `/byoc`. It should show **online**. Send Prime a video link and select an uncached quality priced at zero coins for a first test.
+
+To restart later, use the same Linux account and worker folder. Repeat step 4 in a fresh shell. The pairing from step 3 is saved. To revoke access, send `/byoc revoke` to Prime.
+
+## State and retries
+
+Both commands accept `--state-dir PATH`. The default is `$XDG_STATE_HOME/phubrpc` or `~/.local/state/phubrpc`. Keep this directory private. It contains the hub credential, the worker bot’s Telegram session, and temporary media. Allow room for the selected formats and their merged MP4.
+
+The worker handles one job at a time and sends a heartbeat every 30 seconds. It checks the downloaded file’s actual size, duration, and dimensions before uploading. If a report is interrupted, the worker retries with the saved message ID. If it stops during an upload before recording a message ID, it reports the job as failed on restart. An unconfirmed Telegram post may need manual removal. Prime cleans up confirmed ingest posts.
+
+Restart with the same state directory to resume reporting. To replace a revoked registration, request a new pairing code and use a fresh state directory for both commands.
+
+## Development
+
+Run `python -m unittest discover -s tests -v` in the installed environment. Tests use a loopback TLS hub, a generated video, FFmpeg, yt-dlp, and a simulated Telegram upload. OpenSSL is needed for the temporary test certificate.
+
+The wire contract is in [worker.proto](phubrpc/worker.proto). To regenerate the Python bindings after a contract change, install `grpcio-tools==1.85.3` and run
+
+```sh
+python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. phubrpc/worker.proto
+```
+
+Licensed under [Apache-2.0](LICENSE).
