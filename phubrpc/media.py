@@ -106,6 +106,7 @@ async def download_command(args, workspace, limit, progress):
 
 
 def ytdlp(*args):
+    proxy = os.getenv("WORKER_HTTP_PROXY", "").strip()
     return (
         sys.executable,
         "-m",
@@ -116,6 +117,7 @@ def ytdlp(*args):
         "--no-progress",
         "--socket-timeout",
         "12",
+        *(("--proxy", proxy) if proxy else ()),
         *args,
     )
 
