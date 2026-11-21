@@ -2,12 +2,14 @@ import asyncio
 import base64
 import functools
 import http.server
+import io
 import json
 import os
 import subprocess
 import tempfile
 import threading
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -83,6 +85,27 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(stub.Report.await_args.args[0], result)
         telegram.send_file.assert_not_awaited()
         self.assertFalse(directory.exists())
+
+    async def test_disabled_hub_message_and_retry(self):
+        disabled = grpc.aio.AioRpcError(
+            grpc.StatusCode.UNAVAILABLE, details=runtime.HUB_DISABLED
+        )
+        method = AsyncMock(side_effect=[disabled, pb.Assignment()])
+        with patch.object(runtime.asyncio, "sleep", new_callable=AsyncMock) as sleep:
+            with self.assertLogs("phubrpc", level="WARNING") as logs:
+                result = await runtime.call(method, pb.Empty(), ())
+        self.assertFalse(result.job_id)
+        sleep.assert_awaited_once_with(1)
+        self.assertIn("BYOC hub is disabled by the bot admin", logs.output[0])
+
+        with patch.object(cli, "start", AsyncMock(side_effect=disabled)), \
+                patch("sys.argv", ["worker", "register", "--hub", "localhost:443",
+                                   "--state-dir", str(self.root / "register")]), \
+                redirect_stderr(io.StringIO()) as stderr:
+            with self.assertRaises(SystemExit) as error:
+                await asyncio.to_thread(cli.main)
+        self.assertEqual(error.exception.code, 1)
+        self.assertIn("BYOC hub is disabled by the bot admin", stderr.getvalue())
 
     async def test_group_or_public_channel_rejected(self):
         telegram = AsyncMock()

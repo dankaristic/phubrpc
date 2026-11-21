@@ -14,7 +14,7 @@ from telethon.errors import RPCError
 from . import worker_pb2 as pb
 from . import worker_pb2_grpc as rpc
 from .media import MediaError
-from .runtime import call, check_channel, exclusive, heartbeat, jobs, save
+from .runtime import HUB_DISABLED, call, check_channel, exclusive, heartbeat, jobs, save
 
 LOG = logging.getLogger(__name__)
 CONFIG_KEYS = {"TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_BOT_TOKEN", "WORKER_HTTP_PROXY"}
@@ -193,6 +193,8 @@ def main():
     except KeyboardInterrupt:
         pass
     except grpc.aio.AioRpcError as exc:
+        if exc.code() == grpc.StatusCode.UNAVAILABLE and exc.details() == HUB_DISABLED:
+            parser.exit(1, "BYOC hub is disabled by the bot admin. Try registering after it is enabled.\n")
         parser.exit(
             1,
             f"Hub request failed ({exc.code().name}). Check the endpoint, TLS and pairing.\n",

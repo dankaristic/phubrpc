@@ -21,6 +21,7 @@ from . import media
 from . import worker_pb2 as pb
 
 LOG = logging.getLogger("phubrpc")
+HUB_DISABLED = "BYOC hub is disabled."
 RETRYABLE = {
     grpc.StatusCode.UNAVAILABLE,
     grpc.StatusCode.DEADLINE_EXCEEDED,
@@ -66,7 +67,10 @@ async def call(method, request, auth):
         except grpc.aio.AioRpcError as exc:
             if exc.code() not in RETRYABLE:
                 raise
-            LOG.warning("Hub unavailable (%s), retrying in %ss", exc.code().name, delay)
+            if exc.code() == grpc.StatusCode.UNAVAILABLE and exc.details() == HUB_DISABLED:
+                LOG.warning("BYOC hub is disabled by the bot admin; waiting to reconnect in %ss", delay)
+            else:
+                LOG.warning("Hub unavailable (%s), retrying in %ss", exc.code().name, delay)
             await asyncio.sleep(delay)
             delay = min(delay * 2, 30)
 
