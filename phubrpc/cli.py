@@ -42,7 +42,20 @@ def load_env_file(path, required_file=False):
             if len(value) < 2 or value[-1] != value[0]:
                 raise ValueError(f"Unclosed quote on line {number} of {path}")
             value = value[1:-1]
-        os.environ.setdefault(key, value)
+        if not os.environ.get(key):
+            os.environ[key] = value
+
+
+def load_worker_env(directory, env_file=None):
+    """Prefer the state file, then fill missing values from the current folder."""
+    paths = [env_file] if env_file else [directory / ".env", Path.cwd() / ".env"]
+    for path in dict.fromkeys(paths):
+        load_env_file(path, required_file=env_file is not None)
+    missing = [key for key in ("TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_BOT_TOKEN")
+               if not os.getenv(key)]
+    if missing:
+        checked = ", ".join(str(path) for path in paths)
+        raise ValueError(f"Missing {', '.join(missing)}. Checked {checked}; set them there or export them.")
 
 
 def required(name):
@@ -157,7 +170,7 @@ def main():
         "--ca", type=Path, help="PEM CA certificate for a private hub"
     )
     run = commands.add_parser("run", help="Process assignments until interrupted")
-    run.add_argument("--env-file", type=Path, help="Credential file (default: STATE_DIR/.env)")
+    run.add_argument("--env-file", type=Path, help="Credential file (default: state dir, then current folder)")
     default = (
         Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "phubrpc"
     )
@@ -172,9 +185,9 @@ def main():
         directory = args.state_dir.expanduser().resolve()
         with exclusive(directory):
             if args.action == "run":
-                load_env_file(
-                    args.env_file.expanduser().resolve() if args.env_file else directory / ".env",
-                    required_file=bool(args.env_file),
+                load_worker_env(
+                    directory,
+                    args.env_file.expanduser().resolve() if args.env_file else None,
                 )
             asyncio.run(start(args, directory))
     except KeyboardInterrupt:

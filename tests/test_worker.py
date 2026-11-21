@@ -45,6 +45,22 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             cli.load_env_file(env_file)
 
+    async def test_run_finds_project_env_and_fills_empty_shell_values(self):
+        env_file = self.root / ".env"
+        env_file.write_text(
+            "TELEGRAM_API_ID=123\nTELEGRAM_API_HASH=saved_hash\n"
+            "TELEGRAM_BOT_TOKEN=456:token\n"
+        )
+        env_file.chmod(0o600)
+        with patch.dict(os.environ, {"TELEGRAM_BOT_TOKEN": ""}, clear=True), \
+                patch.object(cli.Path, "cwd", return_value=self.root):
+            cli.load_worker_env(self.root / "state")
+            self.assertEqual(os.environ["TELEGRAM_BOT_TOKEN"], "456:token")
+        with patch.dict(os.environ, {}, clear=True), \
+                patch.object(cli.Path, "cwd", return_value=self.root / "other"):
+            with self.assertRaisesRegex(ValueError, "Checked"):
+                cli.load_worker_env(self.root / "state")
+
     async def test_replay_after_restart(self):
         directory = self.root / "job-restart"
         directory.mkdir()

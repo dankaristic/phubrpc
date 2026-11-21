@@ -61,7 +61,7 @@ chmod 600 ~/.local/state/phubrpc/.env
 .venv/bin/worker run
 ```
 
-The worker reads this file on every start. Environment variables already set in the shell take precedence. Use `worker run --env-file PATH` for a different file.
+The worker reads this file on every start. It also checks `.env` in the folder where you run it, so `~/phubrpc/.env` works when you start it from `~/phubrpc`. The state directory file takes precedence, followed by the current folder; nonempty shell variables override both. Use `worker run --env-file PATH` for a specific file.
 
 If the download machine's public IP gets a 403 from the video site, set `WORKER_HTTP_PROXY` in the file to a working outbound HTTP, HTTPS, or SOCKS proxy.
 
