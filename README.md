@@ -17,7 +17,7 @@ python3 -m venv .venv
 .venv/bin/worker --help
 ```
 
-The help screen should list `register` and `run`. If the worker is already installed here, skip this step.
+The help screen should list `register` and `run`. After every `git pull`, rerun `.venv/bin/python -m pip install -U .` before starting the worker; `git pull` updates the source folder but not the copy installed in `.venv`.
 
 ## 2. Get a pairing code in Telegram
 
@@ -69,7 +69,49 @@ This setting applies to both metadata lookups and video downloads. The proxy mus
 
 Leave it running. If the terminal asks for a setup message, post any text in the private channel within 60 seconds. Once you see `Connected as worker bot`, DM Prime `/byoc`. It should show **online**. Send Prime a video link and select an uncached quality priced at zero coins for a first test.
 
-After a reboot, use the same Linux account and worker folder and run `.venv/bin/worker run`. The pairing and `.env` credentials are already saved. To revoke access, send `/byoc revoke` to Prime.
+After a reboot, use the same Linux account and worker folder and run `.venv/bin/worker run`, or set up the background service below. The pairing and `.env` credentials are already saved. To revoke access, send `/byoc revoke` to Prime.
+
+## Run in the background with systemd
+
+On a Linux machine with systemd, a service keeps the worker running after you close the terminal and starts it again after a reboot. Stop any foreground worker with Ctrl+C first; only one worker can use a state directory at a time.
+
+Find the absolute worker folder and state directory paths:
+
+```bash
+pwd -P
+readlink -f ~/.local/state/phubrpc
+```
+
+Create `/etc/systemd/system/phubrpc.service` with `sudo nano /etc/systemd/system/phubrpc.service`. Replace the username and paths below with the values on your machine. Use the **same Linux account** that ran `worker register`, so the service can read its saved pairing, Telegram session, and `.env` file. For the root account, the home directory is `/root` rather than `/home/root`.
+
+```ini
+[Unit]
+Description=phubrpc private worker
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_LINUX_USERNAME
+WorkingDirectory=/absolute/path/to/phubrpc
+ExecStart=/absolute/path/to/phubrpc/.venv/bin/worker run --state-dir /absolute/path/to/phubrpc-state
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start the service, then check its status and logs:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now phubrpc
+sudo systemctl status phubrpc
+sudo journalctl -u phubrpc -f
+```
+
+Use `sudo systemctl stop phubrpc` to stop it. After pulling and reinstalling worker updates, run `sudo systemctl restart phubrpc`. The service reads the saved `.env` automatically; you do not need to put credentials in the service file.
 
 ## State and retries
 
