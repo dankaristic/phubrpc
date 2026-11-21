@@ -44,28 +44,32 @@ Wait for `Registered worker ... for channel ...`. For Coolify's public certifica
 
 ## 4. Start downloading
 
-In the same Bash terminal, run these commands one line at a time. Enter your Telegram application's API ID and hash from `my.telegram.org` → **API development tools**, then the **worker bot's** BotFather token.
+Save your Telegram application's API ID and hash from `my.telegram.org` → **API development tools**, and the **worker bot's** BotFather token in the worker state directory. Registration has already created that directory. Create `~/.local/state/phubrpc/.env` with these lines (or use your chosen `--state-dir`):
+
+```dotenv
+TELEGRAM_API_ID=your_api_id
+TELEGRAM_API_HASH=your_api_hash
+TELEGRAM_BOT_TOKEN=your_worker_bot_token
+# Optional if this machine needs an outbound proxy:
+# WORKER_HTTP_PROXY=http://user:password@proxy-host:port
+```
+
+Keep the file private, then start the worker:
 
 ```bash
-read -rp 'Telegram API ID: ' TELEGRAM_API_ID
-read -rsp 'Telegram API hash: ' TELEGRAM_API_HASH; echo
-read -rsp 'Worker bot token: ' TELEGRAM_BOT_TOKEN; echo
-export TELEGRAM_API_ID TELEGRAM_API_HASH TELEGRAM_BOT_TOKEN
+chmod 600 ~/.local/state/phubrpc/.env
 .venv/bin/worker run
 ```
 
-If the download machine's public IP gets a 403 from the video site, use a working outbound HTTP, HTTPS, or SOCKS proxy. Set it in the same shell before starting the worker:
+The worker reads this file on every start. Environment variables already set in the shell take precedence. Use `worker run --env-file PATH` for a different file.
 
-```bash
-export WORKER_HTTP_PROXY='http://user:password@proxy-host:port'
-.venv/bin/worker run
-```
+If the download machine's public IP gets a 403 from the video site, set `WORKER_HTTP_PROXY` in the file to a working outbound HTTP, HTTPS, or SOCKS proxy.
 
 This setting applies to both metadata lookups and video downloads. The proxy must be able to reach the video page, not just the site's homepage; Coolify's inbound HTTPS proxy does not change the worker's outbound IP. To check the proxy before starting the worker, run `.venv/bin/python -m yt_dlp --proxy "$WORKER_HTTP_PROXY" --dump-single-json -- 'VIDEO_LINK' >/dev/null`. If the command still returns 403, run `.venv/bin/python -m yt_dlp --list-impersonate-targets` and verify that at least one browser target is available. Reinstall the worker with `.venv/bin/python -m pip install -U .` to install the browser impersonation dependency. A proxy whose IP is rejected on the video page can still return 403 after this; try another outbound IP or run the worker from a network where the page loads.
 
 Leave it running. If the terminal asks for a setup message, post any text in the private channel within 60 seconds. Once you see `Connected as worker bot`, DM Prime `/byoc`. It should show **online**. Send Prime a video link and select an uncached quality priced at zero coins for a first test.
 
-To restart later, use the same Linux account and worker folder. Repeat step 4 in a fresh shell. The pairing from step 3 is saved. To revoke access, send `/byoc revoke` to Prime.
+After a reboot, use the same Linux account and worker folder and run `.venv/bin/worker run`. The pairing and `.env` credentials are already saved. To revoke access, send `/byoc revoke` to Prime.
 
 ## State and retries
 

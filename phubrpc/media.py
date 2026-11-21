@@ -222,13 +222,17 @@ async def download(job, folder, progress=None):
 async def thumbnail(path, duration):
     """Extract a small JPEG from the video for Telegram's preview."""
     thumb = path.with_suffix(".jpg")
-    try:
-        await command(
-            "ffmpeg", "-y", "-loglevel", "error",
-            "-ss", str(min(15, duration / 2)), "-i", str(path),
-            "-an", "-vf", "scale=320:320:force_original_aspect_ratio=decrease",
-            "-frames:v", "1", "-q:v", "5", str(thumb),
-        )
-    except MediaError:
-        return None
-    return thumb if thumb.is_file() and 0 < thumb.stat().st_size <= 200_000 else None
+    for size, quality in ((320, 8), (240, 12), (160, 18)):
+        try:
+            await command(
+                "ffmpeg", "-y", "-loglevel", "error",
+                "-ss", str(min(15, duration / 2)), "-i", str(path),
+                "-an", "-vf", f"scale={size}:{size}:force_original_aspect_ratio=decrease",
+                "-frames:v", "1", "-q:v", str(quality), str(thumb),
+            )
+        except MediaError:
+            return None
+        # Telethon documents successful Telegram thumbnails as below 20 KiB.
+        if thumb.is_file() and 0 < thumb.stat().st_size < 19_000:
+            return thumb
+    return None

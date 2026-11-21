@@ -115,6 +115,10 @@ async def execute(job, telegram, channel, workspace, progress=None):
 
         path, w, h, duration = await media.download(job, workspace, download_progress if progress else None)
         thumb = await media.thumbnail(path, duration)
+        if thumb:
+            LOG.info("Video thumbnail prepared (%s bytes)", thumb.stat().st_size)
+        else:
+            LOG.warning("Video thumbnail unavailable; Telegram may choose its own preview")
         await check_channel(telegram, channel)
         if progress:
             await progress("uploading", 0, path.stat().st_size, 0, 0)

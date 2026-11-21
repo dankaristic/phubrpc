@@ -3,6 +3,7 @@ import base64
 import functools
 import http.server
 import json
+import os
 import subprocess
 import tempfile
 import threading
@@ -26,6 +27,23 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)
+
+    async def test_private_env_file_persists_credentials_and_keeps_shell_override(self):
+        env_file = self.root / ".env"
+        env_file.write_text(
+            "TELEGRAM_API_ID=123\nTELEGRAM_API_HASH='saved hash'\n"
+            "TELEGRAM_BOT_TOKEN=456:token\nWORKER_HTTP_PROXY=http://proxy:8080\n"
+        )
+        env_file.chmod(0o600)
+        with patch.dict(os.environ, {"TELEGRAM_API_ID": "999"}, clear=True):
+            cli.load_env_file(env_file)
+            self.assertEqual(os.environ["TELEGRAM_API_ID"], "999")
+            self.assertEqual(os.environ["TELEGRAM_API_HASH"], "saved hash")
+            self.assertEqual(os.environ["TELEGRAM_BOT_TOKEN"], "456:token")
+            self.assertEqual(os.environ["WORKER_HTTP_PROXY"], "http://proxy:8080")
+        env_file.chmod(0o644)
+        with self.assertRaises(ValueError):
+            cli.load_env_file(env_file)
 
     async def test_replay_after_restart(self):
         directory = self.root / "job-restart"
@@ -298,4 +316,5 @@ class WorkerTests(unittest.IsolatedAsyncioTestCase):
         (attr,) = kwargs["attributes"]
         self.assertEqual((attr.w, attr.h), (1280, 720))
         self.assertTrue(thumb.startswith(b"\xff\xd8\xff"))
+        self.assertLess(len(thumb), 19_000)
         self.assertFalse((state / "pending.json").exists())
